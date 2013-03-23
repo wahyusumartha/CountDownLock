@@ -1,0 +1,34 @@
+This is a simple lock mechanism useful for unit testing asynchronous blocks on iOS.
+
+A common use pattern would be something like the following.
+
+Initialize the counter to the number of counts to wait on from your primary thread.
+
+	CountDownLock *lock = [[CountDownLock alloc] initWithCount:1];
+
+Start the asynchronous block, at end of block decrement the counter:
+   
+	[lock countDown];
+
+After initiating the asynchronous block from your primary thread, wait for the countdown to reach zero:
+   
+	[lock await];
+
+
+Note that if you need to synchronize a series of steps, you would initialize the counter to the number of steps to sync, for example 2. Then you can specify the lock to wait for the first step:
+
+	[lock awaitTilCount:1];
+
+After which you could initiate the next asynchronous operation and wait for its completion.
+
+Special Note on asynchronous callbacks: 
+
+If your are using a library like AFNetworking and want to wait on the callback block, the callback block MUST execute on a different thread than the one that executes [lock await]. Failure to do this usually results in deadlock since the callback block will sit on the same queue as the one that is awaiting on the lock.
+
+In AFNetworking, you can do something like the following to setup your request operations:
+
+  AFHTTPRequestOperation *operation = [self HTTPRequestOperationWithRequest:request success:success failure:failure];
+  [operation setFailureCallbackQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0L)];
+  [operation setSuccessCallbackQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0L)];
+
+
